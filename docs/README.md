@@ -6,7 +6,14 @@ When you want to sync multiple Google Calendars into one. Currently Google Calen
 
 This is useful for a collective Busy/Free Calendar or Google Home integration.
 
-## Getting Starting
+It uses:
+
+- Library: [https://github.com/tanaikech/BatchRequest](https://github.com/tanaikech/BatchRequest)
+- Integration: Calendar v3
+
+If you edit `appsscript.json` to the uploaded one, they can be used, no further action is necessary.
+
+## Getting Started
 
 1. Make sure every calendar you want sync is shared with the account that holds the shared calendar.
 2. Log into the account that holds the shared calendar and go to the [Google Apps Scripts] website.
