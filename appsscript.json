@@ -1,7 +1,11 @@
 {
-  "timeZone": "Europe/Paris",
+  "timeZone": "Europe/Budapest",
   "exceptionLogging": "STACKDRIVER",
   "runtimeVersion": "V8",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/script.external_request",
+    "https://www.googleapis.com/auth/calendar"
+  ],
   "dependencies": {
     "enabledAdvancedServices": [
       {
@@ -11,11 +15,6 @@
       }
     ],
     "libraries": [
-      {
-        "userSymbol": "BatchRequest",
-        "libraryId": "1HLv6tWz0oXFOJHerBTP8HsNmhpRqssijJatC92bv9Ym6HSN69_UuzcDk",
-        "version": "6"
-      }
     ]
   }
 }
