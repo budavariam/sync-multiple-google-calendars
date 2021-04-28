@@ -27,6 +27,9 @@ If you edit `appsscript.json` to the uploaded one, they can be used, no further 
 ## Notes
 - Google App Scripts has a daily quote of 5k events created per day. See [Quotas for Google Services]
 - Be sure to turn off "notifications".
+- You don't need to use your personal default calendar for this. 
+  In google calendar you can create a new calendar, and you can get its ID at the details section.
+  It will probably be something like: `xxxxxxxxxxxxxxxxxxxxxx@group.calendar.google.com`.
 
 ## License
 
