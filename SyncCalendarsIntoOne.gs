@@ -4,10 +4,12 @@
 const CALENDARS_TO_MERGE = {
   '[Work]': 'calendar-id@gmail.com',
 };
-const keepEventName = false
+const keepEventDetails = false
+// upon deleting past events, only remove the events with these prefixes
 const DELETEPREFIXES = [
   '[Work]'
 ]
+// upon creating new events, do not create events with these prefixes
 const SKIPPREFIXES = [
   '[Personal]',
   '[Common]',
@@ -188,11 +190,11 @@ function deleteEvents(startTime, endTime) {
       if (!e || !e.getTitle) {
         return false;
       }
-      const eventTitle = e.getTitle()
-      if (SKIPPREFIXES.some((key) => (eventTitle || '').startsWith(key))) {
+      const eventTitle = e.getTitle() || ''
+      if (SKIPPREFIXES.some((key) => eventTitle.startsWith(key))) {
         return false;
       }
-      const shouldDelete = DELETEPREFIXES.some((key) => (eventTitle || '').startsWith(key))
+      const shouldDelete = DELETEPREFIXES.some((key) => eventTitle.startsWith(key))
       // console.log("DEBUG", shouldDelete, eventTitle)
       return shouldDelete
     })
@@ -245,15 +247,19 @@ function createEvents(startTime, endTime) {
       if (event.transparency && event.transparency === 'transparent') {
         return;
       }
-      console.log('Debug:', event);
-      const eventTitle = keepEventName ? (event.summary || "busy") : "busy"
+      // console.log('Debug:', event);
+      const eventTitle = keepEventDetails ? (event.summary || "busy") : "busy"
       requestBody.push({
         method: 'POST',
         endpoint: `https://www.googleapis.com/calendar/v3/calendars/${CALENDAR_TO_MERGE_INTO}/events`,
         requestBody: {
           summary: `${calendarName} ${eventTitle}`,
-          location: event.location,
-          description: event.description,
+          location: keepEventDetails ? event.location : undefined,
+          description: keepEventDetails ? event.description : undefined,
+          reminders: {
+            useDefault: false,
+            overrides: [],
+          },
           start: event.start,
           end: event.end,
         },
