@@ -2,10 +2,16 @@
 // "[X]" is what is placed in front of your calendar event in the shared calendar.
 // Use "" if you want none.
 const CALENDARS_TO_MERGE = {
-  '[Personal]': 'calendar-id@gmail.com',
   '[Work]': 'calendar-id@gmail.com',
 };
-
+const keepEventName = false
+const DELETEPREFIXES = [
+  '[Work]'
+]
+const SKIPPREFIXES = [
+  '[Personal]',
+  '[Common]',
+]
 // The ID of the shared calendar
 const CALENDAR_TO_MERGE_INTO = 'shared-calendar-id@gmail.com';
 
@@ -177,14 +183,25 @@ function EDo(object) {
 function deleteEvents(startTime, endTime) {
   const sharedCalendar = CalendarApp.getCalendarById(CALENDAR_TO_MERGE_INTO);
   const events = sharedCalendar.getEvents(startTime, endTime);
-
-  const requestBody = events.map((e, i) => ({
+  const requestBody = events
+    .filter((e,i)=>{
+      if (!e || !e.getTitle) {
+        return false;
+      }
+      const eventTitle = e.getTitle()
+      if (SKIPPREFIXES.some((key) => (eventTitle || '').startsWith(key))) {
+        return false;
+      }
+      const shouldDelete = DELETEPREFIXES.some((key) => (eventTitle || '').startsWith(key))
+      // console.log("DEBUG", shouldDelete, eventTitle)
+      return shouldDelete
+    })
+    .map((e, i) => ({
     method: 'DELETE',
     endpoint: `https://www.googleapis.com/calendar/v3/calendars/${CALENDAR_TO_MERGE_INTO}/events/${e
       .getId()
       .replace('@google.com', '')}`,
   }));
-
   if (requestBody && requestBody.length) {
     const result = EDo({
       useFetchAll: true,
@@ -200,8 +217,8 @@ function deleteEvents(startTime, endTime) {
 function createEvents(startTime, endTime) {
   let requestBody = [];
 
-  for (let calenderName in CALENDARS_TO_MERGE) {
-    const calendarId = CALENDARS_TO_MERGE[calenderName];
+  for (let calendarName in CALENDARS_TO_MERGE) {
+    const calendarId = CALENDARS_TO_MERGE[calendarName];
     const calendarToCopy = CalendarApp.getCalendarById(calendarId);
 
     if (!calendarToCopy) {
@@ -228,12 +245,13 @@ function createEvents(startTime, endTime) {
       if (event.transparency && event.transparency === 'transparent') {
         return;
       }
-      // console.log('Debug:', event);
+      console.log('Debug:', event);
+      const eventTitle = keepEventName ? (event.summary || "busy") : "busy"
       requestBody.push({
         method: 'POST',
         endpoint: `https://www.googleapis.com/calendar/v3/calendars/${CALENDAR_TO_MERGE_INTO}/events`,
         requestBody: {
-          summary: `${calenderName} ${event.summary || "busy" }`,
+          summary: `${calendarName} ${eventTitle}`,
           location: event.location,
           description: event.description,
           start: event.start,
