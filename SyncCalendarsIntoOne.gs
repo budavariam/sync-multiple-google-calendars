@@ -23,10 +23,11 @@ const DAYS_TO_SYNC = 30;
 // ----------------------------------------------------------------------------
 // DO NOT TOUCH FROM HERE ON
 // ----------------------------------------------------------------------------
-
-(function(r) {
+const SKIP_REQUESTS = false;
+const DEBUG_EVENTS = false;
+(function (r) {
   var BatchRequest;
-  BatchRequest = (function() {
+  BatchRequest = (function () {
     var createRequest, parser;
 
     BatchRequest.name = "BatchRequest";
@@ -54,7 +55,7 @@ const DAYS_TO_SYNC = 30;
       this.useFetchAll = "useFetchAll" in p_ ? p_.useFetchAll : false;
     }
 
-    BatchRequest.prototype.Do = function() {
+    BatchRequest.prototype.Do = function () {
       var e, params, res;
       try {
         params = createRequest.call(this, this.p);
@@ -66,7 +67,7 @@ const DAYS_TO_SYNC = 30;
       return res;
     };
 
-    BatchRequest.prototype.EDo = function() {
+    BatchRequest.prototype.EDo = function () {
       var e, i, j, k, limit, obj, params, ref, ref1, reqs, res, split;
       try {
         if (this.useFetchAll) {
@@ -79,7 +80,7 @@ const DAYS_TO_SYNC = 30;
             reqs.push(params);
           }
           r = UrlFetchApp.fetchAll(reqs);
-          res = r.reduce(function(ar, e) {
+          res = r.reduce(function (ar, e) {
             var obj;
             if (e.getResponseCode() !== 200) {
               ar.push(e.getContentText());
@@ -111,11 +112,11 @@ const DAYS_TO_SYNC = 30;
       return res;
     };
 
-    parser = function(d_) {
+    parser = function (d_) {
       var regex, temp;
       temp = d_.split("--batch");
       regex = /{[\S\s]+}/g;
-      return temp.slice(1, temp.length - 1).map(function(e) {
+      return temp.slice(1, temp.length - 1).map(function (e) {
         if (regex.test(e)) {
           return JSON.parse(e.match(regex)[0]);
         }
@@ -123,13 +124,13 @@ const DAYS_TO_SYNC = 30;
       });
     };
 
-    createRequest = function(d_) {
+    createRequest = function (d_) {
       var contentId, data, e, params;
       try {
         contentId = 0;
         data = "--" + this.boundary + this.lb;
-        d_.forEach((function(_this) {
-          return function(e) {
+        d_.forEach((function (_this) {
+          return function (e) {
             data += "Content-Type: application/http" + _this.lb;
             data += "Content-ID: " + ++contentId + _this.lb + _this.lb;
             data += e.method + " " + e.endpoint + _this.lb;
@@ -168,7 +169,7 @@ const DAYS_TO_SYNC = 30;
  * @return {Object} Return Object
  */
 function Do(object) {
-    return new BatchRequest(object).Do();
+  return new BatchRequest(object).Do();
 }
 
 /**
@@ -177,7 +178,11 @@ function Do(object) {
  * @return {Object} Return Object
  */
 function EDo(object) {
-    return new BatchRequest(object).EDo();
+  if (SKIP_REQUESTS) {
+    console.log("SKIP request", object)
+    return
+  }
+  return new BatchRequest(object).EDo();
 }
 
 // Delete any old events that have been already cloned over.
@@ -186,24 +191,23 @@ function deleteEvents(startTime, endTime) {
   const sharedCalendar = CalendarApp.getCalendarById(CALENDAR_TO_MERGE_INTO);
   const events = sharedCalendar.getEvents(startTime, endTime);
   const requestBody = events
-    .filter((e,i)=>{
+    .filter((e, i) => {
       if (!e || !e.getTitle) {
         return false;
       }
       const eventTitle = e.getTitle() || ''
-      if (SKIPPREFIXES.some((key) => eventTitle.startsWith(key))) {
-        return false;
-      }
       const shouldDelete = DELETEPREFIXES.some((key) => eventTitle.startsWith(key))
-      // console.log("DEBUG", shouldDelete, eventTitle)
+      if (DEBUG_EVENTS) {
+        console.info("DEBUG: DelEvent", {shouldDelete, eventTitle})
+      }
       return shouldDelete
     })
     .map((e, i) => ({
-    method: 'DELETE',
-    endpoint: `https://www.googleapis.com/calendar/v3/calendars/${CALENDAR_TO_MERGE_INTO}/events/${e
-      .getId()
-      .replace('@google.com', '')}`,
-  }));
+      method: 'DELETE',
+      endpoint: `https://www.googleapis.com/calendar/v3/calendars/${CALENDAR_TO_MERGE_INTO}/events/${e
+        .getId()
+        .replace('@google.com', '')}`,
+    }));
   if (requestBody && requestBody.length) {
     const result = EDo({
       useFetchAll: true,
@@ -242,18 +246,24 @@ function createEvents(startTime, endTime) {
     }
 
     events.items.forEach((event) => {
-
       // Don't copy "free" events.
-      if (event.transparency && event.transparency === 'transparent') {
+      if ((!event) || (event.transparency && event.transparency === 'transparent')) {
         return;
       }
-      // console.log('Debug:', event);
-      const eventTitle = keepEventDetails ? (event.summary || "busy") : "busy"
+      const shouldSkip = SKIPPREFIXES.some((key) => (event.summary || "").startsWith(key))
+      const eventTitle = `${calendarName} ${keepEventDetails ? (event.summary || "busy") : "busy"}`
+      if (DEBUG_EVENTS) {
+        console.info("DEBUG: CreateEvent", {shouldSkip, incomingSummary: event.summary, newTitle: eventTitle})
+      }
+      if (shouldSkip) {
+        return
+      }
+
       requestBody.push({
         method: 'POST',
         endpoint: `https://www.googleapis.com/calendar/v3/calendars/${CALENDAR_TO_MERGE_INTO}/events`,
         requestBody: {
-          summary: `${calendarName} ${eventTitle}`,
+          summary: eventTitle,
           location: keepEventDetails ? event.location : undefined,
           description: keepEventDetails ? event.description : undefined,
           reminders: {
